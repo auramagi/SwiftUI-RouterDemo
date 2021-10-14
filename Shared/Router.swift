@@ -66,6 +66,7 @@ extension RouterView: View {
         NavigationView {
             makeViewA()
         }
+        .navigationViewStyle(.stack)
     }
     
 }
