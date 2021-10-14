@@ -7,27 +7,27 @@
 
 import SwiftUI
 
-protocol RouterObject: ObservableObject {
+struct RoutingModifier: ViewModifier {
+    @Binding var navigationBinding: Bool
     
-    associatedtype NextNavigationView: View
-    func navigationBinding(for viewID: String) -> Binding<Bool>
-    @ViewBuilder func nextNavigationView(for viewID: String) -> NextNavigationView
+    @Binding var presentationBinding: Bool
     
-    associatedtype NextPresentationView: View
-    func presentationBinding(for viewID: String) -> Binding<Bool>
-    @ViewBuilder func nextPresentationView(for viewID: String) -> NextPresentationView
+    var navigationDestinationBuilder: () -> AnyView
     
-}
-
-struct RoutingModifier<Router: RouterObject>: ViewModifier {
-    
-    @ObservedObject var router: Router
-    var currentViewID: String
+    var presentationDestinationBuilder: () -> AnyView
     
     func body(content: Content) -> some View {
         content
-            .background(EmptyNavigationLink(destination: router.nextNavigationView(for: currentViewID), isActive: router.navigationBinding(for: currentViewID)))
-            .fullScreenCover(isPresented: router.presentationBinding(for: currentViewID), content: { router.nextPresentationView(for: currentViewID) })
+            .background(
+                EmptyNavigationLink(
+                    destination: navigationDestinationBuilder(),
+                    isActive: $navigationBinding
+                )
+            )
+            .fullScreenCover(
+                isPresented: $presentationBinding,
+                content: presentationDestinationBuilder
+            )
     }
     
 }
@@ -46,8 +46,13 @@ private struct EmptyNavigationLink<Destination: View>: View {
 
 extension View {
     
-    func injectRouter<Router: RouterObject>(_ router: Router, with viewID: String) -> some View {
-        modifier(RoutingModifier(router: router, currentViewID: viewID))
+    func injectRouter(
+        navigationBinding: Binding<Bool>,
+        presentationBinding: Binding<Bool>,
+        @ViewBuilder navigationDestinationBuilder: @escaping () -> AnyView,
+        @ViewBuilder presentationDestinationBuilder: @escaping () -> AnyView
+    ) -> some View {
+        modifier(RoutingModifier(navigationBinding: navigationBinding, presentationBinding: presentationBinding, navigationDestinationBuilder: navigationDestinationBuilder, presentationDestinationBuilder: presentationDestinationBuilder))
     }
     
 }

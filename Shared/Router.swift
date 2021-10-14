@@ -8,39 +8,61 @@
 import SwiftUI
 
 final class Router: ObservableObject {
+    @Published var viewARoute: ViewARoute?
     
-    @Published private var viewARoute: ViewARoute?
-    @Published private var viewBRoute: ViewBRoute?
+    @Published var viewBRoute: ViewBRoute?
+}
+
+struct RouterView {
+    @StateObject var router: Router = .init()
     
     private func makeViewA() -> some View {
-        ViewA(router: self)
-            .injectRouter(self, with: "A")
+        makeRoutedView(
+            id: "A",
+            content: ViewA(router: router)
+        )
     }
     
     private func makeViewB() -> some View {
-        ViewB(router: self)
-            .injectRouter(self, with: "B")
+        makeRoutedView(
+            id: "B",
+            content: ViewB(router: router)
+        )
     }
     
     private func makeViewC() -> some View {
-        ViewC(router: self)
-            .injectRouter(self, with: "C")
+        makeRoutedView(
+            id: "C",
+            content: ViewC(router: router)
+        )
     }
     
     private func makeViewD(int: Int) -> some View {
-        ViewD(router: self, int: int)
+        ViewD(router: router, int: int)
     }
     
     private func makeViewZ() -> some View {
-        ViewZ(router: self)
-            .injectRouter(self, with: "Z")
+        makeRoutedView(
+            id: "Z",
+            content: ViewZ(router: router)
+        )
+    }
+    
+    private func makeRoutedView<Content: View>(id: String, content: Content) -> some View {
+        content
+            .injectRouter(
+                navigationBinding: navigationBinding(for: id),
+                presentationBinding: presentationBinding(for: id),
+                navigationDestinationBuilder: { AnyView(nextNavigationView(for: id)) },
+                presentationDestinationBuilder: { AnyView(nextPresentationView(for: id)) }
+            )
     }
     
 }
 
-extension Router {
+extension RouterView: View {
     
-    func makeView() -> some View {
+    var body: some View {
         NavigationView {
             makeViewA()
         }
@@ -48,12 +70,12 @@ extension Router {
     
 }
 
-extension Router {
+extension RouterView {
     
     @ViewBuilder
-    private func nextViewAfterA(accordingTo route: ViewARoute?) -> some View {
+    private func nextViewAfterA() -> some View {
         
-        if let route = route {
+        if let route = router.viewARoute {
             switch route {
             case .b:
                 makeViewB()
@@ -72,9 +94,9 @@ extension Router {
     }
     
     @ViewBuilder
-    private func nextViewAfterB(accordingTo route: ViewBRoute?) -> some View {
+    private func nextViewAfterB() -> some View {
         
-        if let route = route {
+        if let route = router.viewBRoute {
             switch route {
             case .d(let int):
                 makeViewD(int: int)
@@ -88,17 +110,17 @@ extension Router {
     
 }
 
-extension Router: RouterObject {
+extension RouterView {
     
     func navigationBinding(for viewID: String) -> Binding<Bool> {
         switch viewID {
         case "A":
-            return .init(get: { [unowned self] in return self.viewARoute == .b || self.viewARoute == .c },
-                         set: { [unowned self] in assert($0 == false); self.viewARoute = nil })
+            return .init(get: { return router.viewARoute == .b || router.viewARoute == .c },
+                         set: { assert($0 == false); router.viewARoute = nil })
             
         case "B":
-            return .init(get: { [unowned self] in return self.viewBRoute != nil },
-                         set: { [unowned self] in assert($0 == false); self.viewBRoute = nil })
+            return .init(get: { return router.viewBRoute != nil },
+                         set: { assert($0 == false); router.viewBRoute = nil })
             
         default:
             return .constant(false)
@@ -109,11 +131,11 @@ extension Router: RouterObject {
     func nextNavigationView(for viewID: String) -> some View {
         switch viewID {
         case "A":
-            nextViewAfterA(accordingTo: viewARoute)
-            
+            nextViewAfterA()
+
         case "B":
-            nextViewAfterB(accordingTo: viewBRoute)
-            
+            nextViewAfterB()
+
         default:
             EmptyView()
         }
@@ -122,19 +144,20 @@ extension Router: RouterObject {
     func presentationBinding(for viewID: String) -> Binding<Bool> {
         switch viewID {
         case "A":
-            return .init(get: { [unowned self] in return self.viewARoute == .z },
-                         set: { [unowned self] in assert($0 == false); self.viewARoute = nil })
+            return .init(get: { return router.viewARoute == .z },
+                         set: { assert($0 == false); router.viewARoute = nil })
             
         default:
             return .constant(false)
         }
     }
     
+    @ViewBuilder
     func nextPresentationView(for viewID: String) -> some View {
         switch viewID {
         case "A":
-            nextViewAfterA(accordingTo: viewARoute)
-            
+            nextViewAfterA()
+
         default:
             EmptyView()
         }
